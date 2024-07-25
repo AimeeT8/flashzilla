@@ -11,5 +11,5 @@ struct Card {
     var prompt: String
     var answer: String
     
-    static let example = Card(prompt: "What's a measurement used in the medical field and is the same volume as a mililiter", answer: "cc's or cubic centimeters")
+    static let example = Card(prompt: "What's a measurement used in the medical field and is the same volume as mililiter", answer: "cc's or cubic centimeters")
 }
