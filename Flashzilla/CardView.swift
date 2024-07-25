@@ -39,6 +39,23 @@ struct CardView: View {
         .rotationEffect(.degrees(offset.width / 5.0))
         .offset(x: offset.width * 5)
         .opacity(2 - Double(abs(offset.width / 50)))
+        .gesture(
+            DragGesture()
+                .onChanged { gesture in
+                    offset = gesture.translation
+                
+        }
+                .onEnded { _ in
+                    if abs(offset.width) > 100 {
+                        // remove the card
+                    } else {
+                        offset = .zero
+                    }
+                    
+                }
+        
+        
+        )
         .onTapGesture {
             isShowingAnswer.toggle()
         }
