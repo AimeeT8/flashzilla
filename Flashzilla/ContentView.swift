@@ -17,8 +17,11 @@ extension View {
 struct ContentView: View {
     
     @Environment(\.accessibilityDifferentiateWithoutColor) var accessibilityDifferentiateWithoutColor
+    @Environment(\.accessibilityVoiceOverEnabled) var accessibilityVoiceOverEnabled
     
-    @State private var cards = Array<Card>(repeating: .example, count: 10)
+    @State private var cards = DataManager.load()
+    
+    @State private var showingEditScreen = false
     
     // give user 100 seconds to start:
     @State private var timeRemaining = 100
@@ -31,7 +34,7 @@ struct ContentView: View {
     var body: some View {
         //background image:
         ZStack {
-            Image(.background)
+            Image(decorative: "background")
                 .resizable()
                 .ignoresSafeArea()
             
@@ -47,13 +50,20 @@ struct ContentView: View {
                 
             //card:
                 ZStack {
-                    ForEach(0..<cards.count, id: \.self) { index in
-                        CardView(card: cards[index]) {
+                    ForEach(Array(cards.enumerated()), id: \.element) {item in
+                        
+                        CardView(card: item.element) { reinsert in
                             withAnimation {
-                                removeCard(at: index)
+                                removeCard(at: item.offset, reinsert: reinsert)
                             }
                         }
-                            .stacked(at: index, in: cards.count)
+                        .stacked(at: item.offset, in: cards.count)
+                        
+                        //user can only swie on top card:
+                        .allowsHitTesting(item.offset == cards.count - 1)
+                        
+                        //hide all other cards from screen reader. just read the top one:
+                        .accessibilityHidden(item.offset < cards.count - 1)
                         
                     }
                 }
@@ -66,22 +76,60 @@ struct ContentView: View {
                         .clipShape(.capsule)
                 }
             }
-            if accessibilityDifferentiateWithoutColor {
+            
+            VStack {
+                HStack {
+                    Spacer()
+                    
+                    Button {
+                        showingEditScreen = true
+                    } label: {
+                        Image(systemName: "plus.circle")
+                            .padding()
+                            .background(.black.opacity(0.7))
+                            .clipShape(.circle)
+                        
+                    }
+                }
+                Spacer()
+            }
+            .foregroundStyle(.white)
+            .font(.largeTitle)
+            .padding()
+            
+            
+            if accessibilityDifferentiateWithoutColor || accessibilityVoiceOverEnabled {
                 VStack {
                     Spacer()
                     
                     HStack {
-                        Image(systemName: "xmark.circle")
-                            .padding()
-                            .background(.black.opacity(0.7))
-                            .clipShape(.circle)
+                        Button {
+                            withAnimation {
+                                removeCard(at: cards.count - 1, reinsert: true)
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle")
+                                .padding()
+                                .background(.black.opacity(0.7))
+                                .clipShape(.circle)
+                        }
+                        .accessibilityLabel("wrong")
+                        .accessibilityHint("Mark your answer as being incorrect.")
                         
                         Spacer()
                         
-                        Image(systemName: "checkmark.circle")
-                            .padding()
-                            .background(.black.opacity(0.7))
-                            .clipShape(.circle)
+                        Button {
+                            withAnimation {
+                                removeCard(at: cards.count - 1, reinsert: false)
+                            }
+                        } label: {
+                            Image(systemName: "checkmark.circle")
+                                .padding()
+                                .background(.black.opacity(0.7))
+                                .clipShape(.circle)
+                        }
+                        .accessibilityLabel("Correct")
+                        .accessibilityHint("Mark your answer as being correct.")
                     }
                     .foregroundStyle(.white)
                     .font(.largeTitle)
@@ -106,10 +154,22 @@ struct ContentView: View {
                 isActive = false
             }
         }
+        .sheet(isPresented: $showingEditScreen, onDismiss: resetCards, content: EditCards.init)
+        .onAppear(perform: resetCards)
+         
     }
     
-    func removeCard(at index: Int) {
-        cards.remove(at: index)
+    func removeCard(at index: Int, reinsert: Bool) {
+        guard index >= 0 else { return }
+        
+        if reinsert {
+            cards.move(fromOffsets: IndexSet(integer: index), toOffset: 0)
+        } else {
+            cards.remove(at: index)
+            
+        }
+        
+        
         
         if cards.isEmpty {
             isActive = false
@@ -117,10 +177,13 @@ struct ContentView: View {
     }
     
     func resetCards () {
-        cards = Array<Card>(repeating: .example, count: 10)
         timeRemaining = 100
         isActive = true
+        cards = DataManager.load()
+      
     }
+    
+   
 }
 
 #Preview {

@@ -7,15 +7,28 @@
 
 import SwiftUI
 
+extension Shape {
+    func fill(using offset: CGSize) -> some View {
+        if offset.width == 0 {
+            self.fill(.white)
+        } else if offset.width < 0 {
+            self.fill(.red)
+        } else {
+            self.fill(.green)
+        }
+    }
+}
+
 struct CardView: View {
     
     @Environment(\.accessibilityDifferentiateWithoutColor) var accessibilityDifferentiateWithoutColor
+    @Environment(\.accessibilityVoiceOverEnabled) var accessibilityVoiceOverEnabled
     @State private var offset = CGSize.zero
     @State private var isShowingAnswer = false
     
     let card: Card
     
-    var removal: (() -> Void)? = nil
+    var removal: ((Bool) -> Void)? = nil
     
     
     var body: some View {
@@ -25,25 +38,33 @@ struct CardView: View {
                     accessibilityDifferentiateWithoutColor ? .white
                     : .white
                         .opacity(1 - Double(abs(offset.width / 50.0)))
-                
-                )
+                    )
                 .background(
-                    accessibilityDifferentiateWithoutColor ? nil
+                    accessibilityDifferentiateWithoutColor 
+                    ? nil
                     : RoundedRectangle(cornerRadius: 25)
                         .fill(offset.width > 0 ? .green : .red)
-                
-                )
+                    )
                 .shadow(radius: 10)
             
             VStack {
-                Text(card.prompt)
-                    .font(.largeTitle)
-                    .foregroundStyle(.black)
+                if accessibilityVoiceOverEnabled {
+                    Text(isShowingAnswer ? card.answer : card.prompt)
+                        .font(.largeTitle)
+                        .foregroundStyle(.black)
+                    
+                } else {
+                    
                 
-                if isShowingAnswer {
-                    Text(card.answer)
-                        .font(.title)
-                        .foregroundStyle(.secondary)
+                    Text(card.prompt)
+                        .font(.largeTitle)
+                        .foregroundStyle(.black)
+                
+                    if isShowingAnswer {
+                        Text(card.answer)
+                            .font(.title)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .padding(20)
@@ -53,6 +74,7 @@ struct CardView: View {
         .rotationEffect(.degrees(offset.width / 5.0))
         .offset(x: offset.width * 5)
         .opacity(2 - Double(abs(offset.width / 50)))
+        .accessibilityAddTraits(.isButton)
         .gesture(
             DragGesture()
                 .onChanged { gesture in
@@ -61,7 +83,12 @@ struct CardView: View {
         }
                 .onEnded { _ in
                     if abs(offset.width) > 100 {
-                        removal?()
+                        if offset.width > 0 {
+                            removal?(false)
+                        } else {
+                            removal?(true)
+                            offset = .zero
+                        }
                     } else {
                         offset = .zero
                     }
@@ -73,6 +100,7 @@ struct CardView: View {
         .onTapGesture {
             isShowingAnswer.toggle()
         }
+        .animation(.bouncy, value: offset)
     }
 }
 
